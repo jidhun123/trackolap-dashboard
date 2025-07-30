@@ -63,34 +63,50 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Load Data ---
-@st.cache_data
+# Manual cache clear
+if st.button("🔄 Refresh Data Now"):
+    st.cache_data.clear()
+
+# Load Data Function
+@st.cache_data(ttl=3600)  # Refresh every hour
 def load_data():
     df = pd.read_csv("live_data.csv")
     df.columns = df.columns.str.strip()
-    col_map = {'CLUSTER': 'CLUSTER', 'Branch': 'Branch', 'Territory_Name': 'Territory_Name',
-               'Task_Type': 'Task_Type', 'Task_Status': 'Task_Status', 'Branch_ID': 'Branch_ID'}
+
+    col_map = {
+        'CLUSTER': 'CLUSTER', 'Branch': 'Branch', 'Territory_Name': 'Territory_Name',
+        'Task_Type': 'Task_Type', 'Task_Status': 'Task_Status', 'Branch_ID': 'Branch_ID'
+    }
     for newcol, oldcol in col_map.items():
         if oldcol not in df.columns:
             df[newcol] = None
+
     if 'Task_Lat_Lng' in df.columns:
         latlng_split = df['Task_Lat_Lng'].astype(str).str.split(",", expand=True)
         df['Latitude'] = pd.to_numeric(latlng_split[0], errors='coerce')
         df['Longitude'] = pd.to_numeric(latlng_split[1], errors='coerce')
+
     for dt_col in ['Task_Start', 'Created_Date', 'ETL_Run_Date']:
         if dt_col in df.columns:
             df[dt_col] = pd.to_datetime(df[dt_col], format='%d-%m-%Y %H:%M', errors='coerce').fillna(
                 pd.to_datetime(df[dt_col], format='%d-%m-%Y', errors='coerce')
             )
+
     if 'Time_Taken' in df.columns:
         df['Time_Taken_Minutes'] = pd.to_timedelta(df['Time_Taken'], errors='coerce').dt.total_seconds() / 60
+
     if 'Task_Frequency' in df.columns:
         df['Task_Frequency_Minutes'] = pd.to_timedelta(df['Task_Frequency'], errors='coerce').dt.total_seconds() / 60
+
     df['Task_Status'] = df['Task_Status'].astype(str).str.upper()
     df['Delayed'] = df['Delayed'].astype(str).str.title()
     df['Follow_Up_Status'] = df['Follow_Up_Status'].astype(str).str.title()
+
     return df
 
+# Call the function after it's defined
 df = load_data()
+
 
 # --- Sidebar Filters ---
 with st.sidebar:
