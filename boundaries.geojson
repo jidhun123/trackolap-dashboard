@@ -1,0 +1,66 @@
+# === INTERACTIVE MAP WITH GEOJSON ===
+import json
+
+if 'Latitude' in df.columns and 'Longitude' in df.columns:
+    st.subheader("🗺️ Interactive Task Map with Boundaries")
+
+    map_df = df.dropna(subset=['Latitude', 'Longitude']).copy()
+    map_df['Status'] = map_df['Status'].astype(str).str.upper()
+
+    color_map = {
+        'COMPLETED': '#00C49F',
+        'IN PROGRESS': '#FFBB28',
+        'PENDING': '#FF4C4C'
+    }
+
+    # Load GeoJSON boundaries
+    geojson_path = "boundaries.geojson"
+    try:
+        with open(geojson_path, 'r', encoding='utf-8') as f:
+            boundaries = json.load(f)
+    except Exception as e:
+        st.error(f"❌ Error loading GeoJSON file: {e}")
+        boundaries = None
+
+    center_lat = map_df['Latitude'].mean() if not map_df.empty else 10.85
+    center_lon = map_df['Longitude'].mean() if not map_df.empty else 76.27
+
+    fig_map = px.scatter_mapbox(
+        map_df,
+        lat="Latitude",
+        lon="Longitude",
+        color="Status",
+        hover_name="Name",
+        hover_data={"Task": True, "Status": True, "Latitude": False, "Longitude": False},
+        color_discrete_map=color_map,
+        zoom=6,
+        height=650
+    )
+
+    if boundaries:
+        fig_map.update_layout(
+            mapbox_layers=[
+                {
+                    'source': boundaries,
+                    'type': "line",
+                    'color': "blue",
+                    'opacity': 0.6,
+                    'line': {'width': 2}
+                }
+            ]
+        )
+
+    fig_map.update_layout(
+        mapbox_style="open-street-map",
+        mapbox_center={"lat": center_lat, "lon": center_lon},
+        margin=dict(l=0, r=0, t=0, b=0),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.01,
+            xanchor="right",
+            x=1
+        )
+    )
+
+    st.plotly_chart(fig_map, use_container_width=True)
